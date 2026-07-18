@@ -1,51 +1,56 @@
-const { run, get, all } = require('./connection');
+const { data, loadDatabase, saveDatabase } = require('./connection');
 const { v4: uuidv4 } = require('uuid');
 
 // --- AUDIT LOG UTILITY ---
 async function logAudit(userId, resolvedField, accessedBy) {
+  loadDatabase();
   const logId = uuidv4();
-  await run(
-    `INSERT INTO audit_logs (id, user_id, resolved_field, accessed_by, timestamp)
-     VALUES (?, ?, ?, ?, datetime('now'))`,
-    [logId, userId, resolvedField, accessedBy]
-  );
+  const log = {
+    id: logId,
+    user_id: userId,
+    resolved_field: resolvedField,
+    accessed_by: accessedBy,
+    timestamp: new Date().toISOString()
+  };
+  data.audit_logs.push(log);
+  saveDatabase();
 }
 
 // --- USER MODELS ---
 async function createUser({ real_email, proxy_email, proxy_phone = null, plan_tier = 'free', notification_preferences = {} }) {
+  loadDatabase();
   const id = uuidv4();
-  const prefsStr = JSON.stringify(notification_preferences);
-  await run(
-    `INSERT INTO users (id, real_email, proxy_email, proxy_phone, plan_tier, notification_preferences)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [id, real_email, proxy_email, proxy_phone, plan_tier, prefsStr]
-  );
-  return { id, real_email, proxy_email, proxy_phone, plan_tier, notification_preferences };
+  const newUser = {
+    id,
+    real_email,
+    proxy_email,
+    proxy_phone,
+    plan_tier,
+    notification_preferences,
+    created_at: new Date().toISOString()
+  };
+  data.users.push(newUser);
+  saveDatabase();
+  return newUser;
 }
 
 async function getUserById(id) {
-  const user = await get('SELECT * FROM users WHERE id = ?', [id]);
-  if (user && user.notification_preferences) {
-    user.notification_preferences = JSON.parse(user.notification_preferences);
-  }
-  return user;
+  loadDatabase();
+  return data.users.find(u => u.id === id);
 }
 
 async function getUserByRealEmail(realEmail) {
-  const user = await get('SELECT * FROM users WHERE real_email = ?', [realEmail]);
-  if (user && user.notification_preferences) {
-    user.notification_preferences = JSON.parse(user.notification_preferences);
-  }
-  return user;
+  loadDatabase();
+  return data.users.find(u => u.real_email === realEmail);
 }
 
 /**
  * Resolves user from proxy email and logs access
  */
 async function getUserByProxyEmail(proxyEmail, accessedBy = 'system') {
-  const user = await get('SELECT * FROM users WHERE proxy_email = ?', [proxyEmail]);
+  loadDatabase();
+  const user = data.users.find(u => u.proxy_email === proxyEmail);
   if (user) {
-    user.notification_preferences = user.notification_preferences ? JSON.parse(user.notification_preferences) : {};
     await logAudit(user.id, 'real_email', accessedBy);
   }
   return user;
@@ -55,26 +60,47 @@ async function getUserByProxyEmail(proxyEmail, accessedBy = 'system') {
  * Resolves user from proxy phone and logs access
  */
 async function getUserByProxyPhone(proxyPhone, accessedBy = 'system') {
-  const user = await get('SELECT * FROM users WHERE proxy_phone = ?', [proxyPhone]);
+  loadDatabase();
+  const user = data.users.find(u => u.proxy_phone === proxyPhone);
   if (user) {
-    user.notification_preferences = user.notification_preferences ? JSON.parse(user.notification_preferences) : {};
     await logAudit(user.id, 'real_email', accessedBy);
   }
   return user;
 }
 
 async function updateNotificationPreferences(id, preferences) {
-  const prefsStr = JSON.stringify(preferences);
-  await run('UPDATE users SET notification_preferences = ? WHERE id = ?', [prefsStr, id]);
+  loadDatabase();
+  const user = data.users.find(u => u.id === id);
+  if (user) {
+    user.notification_preferences = preferences;
+    saveDatabase();
+  }
 }
 
 async function updatePlanTier(id, planTier) {
-  await run('UPDATE users SET plan_tier = ? WHERE id = ?', [planTier, id]);
+  loadDatabase();
+  const user = data.users.find(u => u.id === id);
+  if (user) {
+    user.plan_tier = planTier;
+    saveDatabase();
+  }
 }
 
 async function deleteUser(id) {
-  // Cascading deletes will trigger on receipts, audit logs, line_items and statement uploads.
-  await run('DELETE FROM users WHERE id = ?', [id]);
+  loadDatabase();
+
+  // Cascade delete receipts and line items
+  const userReceipts = data.receipts.filter(r => r.user_id === id);
+  for (const r of userReceipts) {
+    data.line_items = data.line_items.filter(li => li.receipt_id !== r.id);
+  }
+
+  data.receipts = data.receipts.filter(r => r.user_id !== id);
+  data.audit_logs = data.audit_logs.filter(l => l.user_id !== id);
+  data.statement_uploads = data.statement_uploads.filter(s => s.user_id !== id);
+  data.users = data.users.filter(u => u.id !== id);
+
+  saveDatabase();
 }
 
 // --- RECEIPT MODELS ---
@@ -90,118 +116,160 @@ async function createReceipt({
   raw_source,
   line_items = [],
 }) {
+  loadDatabase();
   const receiptId = uuidv4();
-  await run(
-    `INSERT INTO receipts (id, user_id, merchant, date, tax, total, payment_method, warranty_expiry, source_channel, raw_source)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [receiptId, user_id, merchant, date, tax, total, payment_method, warranty_expiry, source_channel, raw_source]
-  );
+
+  const receipt = {
+    id: receiptId,
+    user_id,
+    merchant,
+    date,
+    tax,
+    total,
+    payment_method,
+    warranty_expiry,
+    source_channel,
+    raw_source,
+    created_at: new Date().toISOString()
+  };
+
+  data.receipts.push(receipt);
 
   for (const item of line_items) {
     const itemId = uuidv4();
-    await run(
-      `INSERT INTO line_items (id, receipt_id, name, price, category)
-       VALUES (?, ?, ?, ?, ?)`,
-      [itemId, receiptId, item.name, item.price, item.category || 'Other']
-    );
+    data.line_items.push({
+      id: itemId,
+      receipt_id: receiptId,
+      name: item.name,
+      price: item.price,
+      category: item.category || 'Other'
+    });
   }
 
+  saveDatabase();
   return getReceiptById(receiptId);
 }
 
 async function getReceiptById(id) {
-  const receipt = await get('SELECT * FROM receipts WHERE id = ?', [id]);
+  loadDatabase();
+  const receipt = data.receipts.find(r => r.id === id);
   if (!receipt) return null;
 
-  const items = await all('SELECT * FROM line_items WHERE receipt_id = ?', [id]);
-  receipt.line_items = items;
-  return receipt;
+  // Clone receipt and attach items
+  const receiptCopy = { ...receipt };
+  receiptCopy.line_items = data.line_items.filter(li => li.receipt_id === id);
+  return receiptCopy;
 }
 
 async function getReceiptsForUser(userId, { merchant, category, date_start, date_end, has_warranty, search } = {}) {
-  let query = `
-    SELECT DISTINCT r.* FROM receipts r
-    LEFT JOIN line_items li ON r.id = li.receipt_id
-    WHERE r.user_id = ?
-  `;
-  const params = [userId];
+  loadDatabase();
+
+  let receipts = data.receipts.filter(r => r.user_id === userId);
 
   if (merchant) {
-    query += ' AND r.merchant LIKE ?';
-    params.push(`%${merchant}%`);
-  }
-
-  if (category) {
-    query += ' AND li.category = ?';
-    params.push(category);
+    const lowerMerch = merchant.toLowerCase();
+    receipts = receipts.filter(r => r.merchant.toLowerCase().includes(lowerMerch));
   }
 
   if (date_start) {
-    query += ' AND r.date >= ?';
-    params.push(date_start);
+    receipts = receipts.filter(r => r.date >= date_start);
   }
 
   if (date_end) {
-    query += ' AND r.date <= ?';
-    params.push(date_end);
+    receipts = receipts.filter(r => r.date <= date_end);
   }
 
   if (has_warranty === 'true' || has_warranty === true) {
-    query += " AND r.warranty_expiry IS NOT NULL AND r.warranty_expiry != ''";
+    receipts = receipts.filter(r => r.warranty_expiry && r.warranty_expiry !== '');
+  }
+
+  // Filter line items
+  const expandedReceipts = receipts.map(r => {
+    const items = data.line_items.filter(li => li.receipt_id === r.id);
+    return { ...r, line_items: items };
+  });
+
+  let results = expandedReceipts;
+
+  if (category) {
+    results = results.filter(r => r.line_items.some(li => li.category === category));
   }
 
   if (search) {
-    query += ' AND (r.merchant LIKE ? OR li.name LIKE ?)';
-    params.push(`%${search}%`, `%${search}%`);
+    const lowerSearch = search.toLowerCase();
+    results = results.filter(r =>
+      r.merchant.toLowerCase().includes(lowerSearch) ||
+      r.line_items.some(li => li.name.toLowerCase().includes(lowerSearch))
+    );
   }
 
-  query += ' ORDER BY r.date DESC';
-
-  const receipts = await all(query, params);
-
-  // Attach line items to each receipt
-  for (const r of receipts) {
-    r.line_items = await all('SELECT * FROM line_items WHERE receipt_id = ?', [r.id]);
-  }
-
-  return receipts;
+  // Sort by date DESC
+  return results.sort((a, b) => b.date.localeCompare(a.date));
 }
 
 async function updateReceiptWarranty(id, warrantyExpiry) {
-  await run('UPDATE receipts SET warranty_expiry = ? WHERE id = ?', [warrantyExpiry, id]);
+  loadDatabase();
+  const receipt = data.receipts.find(r => r.id === id);
+  if (receipt) {
+    receipt.warranty_expiry = warrantyExpiry;
+    saveDatabase();
+  }
   return getReceiptById(id);
 }
 
 async function deleteReceipt(id) {
-  await run('DELETE FROM receipts WHERE id = ?', [id]);
+  loadDatabase();
+  data.receipts = data.receipts.filter(r => r.id !== id);
+  data.line_items = data.line_items.filter(li => li.receipt_id !== id);
+  saveDatabase();
 }
 
 // --- STATEMENTS MODELS ---
 async function createStatementUpload(userId, { date, merchant, amount, matched_receipt_id = null }) {
+  loadDatabase();
   const id = uuidv4();
-  await run(
-    `INSERT INTO statement_uploads (id, user_id, date, merchant, amount, matched_receipt_id)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [id, userId, date, merchant, amount, matched_receipt_id]
-  );
-  return { id, user_id: userId, date, merchant, amount, matched_receipt_id };
+  const statement = {
+    id,
+    user_id: userId,
+    date,
+    merchant,
+    amount,
+    matched_receipt_id,
+    created_at: new Date().toISOString()
+  };
+  data.statement_uploads.push(statement);
+  saveDatabase();
+  return statement;
 }
 
 async function getStatementUploadsForUser(userId) {
-  return all('SELECT * FROM statement_uploads WHERE user_id = ? ORDER BY date DESC', [userId]);
+  loadDatabase();
+  return data.statement_uploads
+    .filter(s => s.user_id === userId)
+    .sort((a, b) => b.date.localeCompare(a.date));
 }
 
 async function matchStatementToReceipt(statementId, receiptId) {
-  await run('UPDATE statement_uploads SET matched_receipt_id = ? WHERE id = ?', [statementId, receiptId]);
+  loadDatabase();
+  const statement = data.statement_uploads.find(s => s.id === statementId);
+  if (statement) {
+    statement.matched_receipt_id = receiptId;
+    saveDatabase();
+  }
 }
 
 async function clearStatementMatchesForUser(userId) {
-  await run('UPDATE statement_uploads SET matched_receipt_id = NULL WHERE user_id = ?', [userId]);
+  loadDatabase();
+  data.statement_uploads = data.statement_uploads.filter(s => s.user_id !== userId);
+  saveDatabase();
 }
 
 // --- AUDIT LOG MODELS ---
 async function getAuditLogsForUser(userId) {
-  return all('SELECT * FROM audit_logs WHERE user_id = ? ORDER BY timestamp DESC', [userId]);
+  loadDatabase();
+  return data.audit_logs
+    .filter(l => l.user_id === userId)
+    .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 }
 
 module.exports = {

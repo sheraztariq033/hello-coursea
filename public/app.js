@@ -380,13 +380,13 @@ function renderReceipts(receipts) {
         const colorClass = warrantyDaysLeft <= 30 ? 'text-orange-600 bg-orange-50' : 'text-green-600 bg-green-50';
         warrantyHtml = `
           <span class="inline-flex items-center text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${colorClass}">
-            <i class="fa-solid fa-clock mr-1"></i> Warranty Expiry: ${rec.warranty_expiry} (${warrantyDaysLeft} days left)
+            <i class="fa-solid fa-clock mr-1"></i> Warranty Expiry: ${escapeHtml(rec.warranty_expiry)} (${warrantyDaysLeft} days left)
           </span>
         `;
       } else {
         warrantyHtml = `
           <span class="inline-flex items-center text-[11px] font-semibold px-2.5 py-0.5 rounded-full text-red-600 bg-red-50">
-            <i class="fa-solid fa-circle-exclamation mr-1"></i> Warranty Expired: ${rec.warranty_expiry}
+            <i class="fa-solid fa-circle-exclamation mr-1"></i> Warranty Expired: ${escapeHtml(rec.warranty_expiry)}
           </span>
         `;
       }
@@ -415,13 +415,13 @@ function renderReceipts(receipts) {
           </div>
           <div>
             <div class="flex items-center space-x-2">
-              <h4 class="font-bold text-gray-900 text-sm hover:text-indigo-600 transition">${rec.merchant}</h4>
-              <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${channelBadgeClass}">${rec.source_channel}</span>
+              <h4 class="font-bold text-gray-900 text-sm hover:text-indigo-600 transition">${escapeHtml(rec.merchant)}</h4>
+              <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${channelBadgeClass}">${escapeHtml(rec.source_channel)}</span>
             </div>
-            <p class="text-xs text-gray-500 mt-0.5"><i class="fa-solid fa-calendar-day mr-1"></i> ${rec.date}</p>
+            <p class="text-xs text-gray-500 mt-0.5"><i class="fa-solid fa-calendar-day mr-1"></i> ${escapeHtml(rec.date)}</p>
             <div class="mt-2 flex flex-wrap gap-2 items-center">
               ${warrantyHtml}
-              ${rec.payment_method ? `<span class="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded"><i class="fa-solid fa-credit-card mr-1"></i> ${rec.payment_method}</span>` : ''}
+              ${rec.payment_method ? `<span class="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded"><i class="fa-solid fa-credit-card mr-1"></i> ${escapeHtml(rec.payment_method)}</span>` : ''}
             </div>
           </div>
         </div>
@@ -444,8 +444,8 @@ function renderReceipts(receipts) {
             ${rec.line_items.map(item => `
               <div class="p-3 flex justify-between items-center">
                 <div>
-                  <span class="font-bold text-gray-800">${item.name}</span>
-                  <span class="bg-indigo-50 text-indigo-700 text-[9px] px-1.5 py-0.5 rounded ml-2 uppercase font-semibold">${item.category || 'Other'}</span>
+                  <span class="font-bold text-gray-800">${escapeHtml(item.name)}</span>
+                  <span class="bg-indigo-50 text-indigo-700 text-[9px] px-1.5 py-0.5 rounded ml-2 uppercase font-semibold">${escapeHtml(item.category || 'Other')}</span>
                 </div>
                 <span class="font-bold text-gray-900">$${parseFloat(item.price).toFixed(2)}</span>
               </div>
@@ -476,7 +476,7 @@ function renderReceipts(receipts) {
         <div id="raw-source-${rec.id}" class="hidden bg-gray-950 text-green-400 p-3 rounded-lg text-[10px] font-mono overflow-x-auto whitespace-pre-wrap max-h-48 border border-gray-800 shadow-inner">
           <div class="text-gray-500 border-b border-gray-800 pb-1.5 mb-2 flex justify-between uppercase tracking-wider font-sans font-bold">
             <span>Original Inbound Raw Source File Log</span>
-            <span class="text-indigo-400">Channel: ${rec.source_channel}</span>
+            <span class="text-indigo-400">Channel: ${escapeHtml(rec.source_channel)}</span>
           </div>
           ${escapeHtml(rec.raw_source)}
         </div>
@@ -930,7 +930,7 @@ function renderStatements(statements) {
       matchHtml = `
         <div class="flex items-center space-x-1.5 text-xs text-green-700 font-bold bg-green-50 px-3 py-1.5 rounded-lg border border-green-200">
           <i class="fa-solid fa-circle-check"></i>
-          <span>Receipt Verified (ID: ${stmt.matched_receipt_id.slice(0, 8)}...)</span>
+          <span>Receipt Verified (ID: ${escapeHtml(stmt.matched_receipt_id).slice(0, 8)}...)</span>
         </div>
       `;
     } else {
@@ -941,7 +941,7 @@ function renderStatements(statements) {
             <i class="fa-solid fa-circle-xmark"></i>
             <span>GAP DETECTED: No Receipt Filed</span>
           </div>
-          <button onclick="simulateGapRecovery('${stmt.merchant}', '${stmt.date}', ${stmt.amount})" class="bg-red-600 hover:bg-red-700 text-white font-bold px-2.5 py-1 rounded text-[10px] transition">
+          <button onclick="simulateGapRecovery('${escapeHtml(stmt.merchant)}', '${escapeHtml(stmt.date)}', ${stmt.amount})" class="bg-red-600 hover:bg-red-700 text-white font-bold px-2.5 py-1 rounded text-[10px] transition">
             <i class="fa-solid fa-arrow-up-from-bracket mr-1"></i> Retrieve & File Receipt
           </button>
         </div>
@@ -953,8 +953,8 @@ function renderStatements(statements) {
     item.innerHTML = `
       <div>
         <div class="flex items-center space-x-2">
-          <h4 class="font-bold text-gray-900 text-sm">${stmt.merchant}</h4>
-          <span class="text-[10px] text-gray-400 font-mono">${stmt.date}</span>
+          <h4 class="font-bold text-gray-900 text-sm">${escapeHtml(stmt.merchant)}</h4>
+          <span class="text-[10px] text-gray-400 font-mono">${escapeHtml(stmt.date)}</span>
         </div>
         <span class="text-sm font-extrabold text-gray-900 mt-1 block">$${parseFloat(stmt.amount).toFixed(2)}</span>
       </div>
@@ -1046,10 +1046,10 @@ function renderAuditLogs(logs) {
     const tr = document.createElement('tr');
     tr.className = 'border-b hover:bg-gray-50';
     tr.innerHTML = `
-      <td class="px-4 py-3 font-mono text-[10px] text-gray-400 select-all">${log.id}</td>
-      <td class="px-4 py-3 font-semibold text-gray-700 text-xs">${log.resolved_field}</td>
-      <td class="px-4 py-3 text-indigo-600 font-medium text-xs">${log.accessed_by}</td>
-      <td class="px-4 py-3 text-gray-400 text-[11px]">${log.timestamp}</td>
+      <td class="px-4 py-3 font-mono text-[10px] text-gray-400 select-all">${escapeHtml(log.id)}</td>
+      <td class="px-4 py-3 font-semibold text-gray-700 text-xs">${escapeHtml(log.resolved_field)}</td>
+      <td class="px-4 py-3 text-indigo-600 font-medium text-xs">${escapeHtml(log.accessed_by)}</td>
+      <td class="px-4 py-3 text-gray-400 text-[11px]">${escapeHtml(log.timestamp)}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -1077,7 +1077,7 @@ function showToast(message, type = 'info') {
   toast.className = `${colorClass} shadow-xl rounded-lg px-4 py-3 max-w-sm flex items-center space-x-3 transition duration-300 transform translate-y-2 opacity-0`;
   toast.innerHTML = `
     <i class="fa-solid ${iconClass} text-lg"></i>
-    <span class="text-xs font-semibold">${message}</span>
+    <span class="text-xs font-semibold">${escapeHtml(message)}</span>
   `;
 
   container.appendChild(toast);
@@ -1113,6 +1113,7 @@ function copyText(id) {
 
 // --- ESCAPE HTML ---
 function escapeHtml(text) {
+  if (text === null || text === undefined) return '';
   const map = {
     '&': '&amp;',
     '<': '&lt;',
@@ -1120,5 +1121,5 @@ function escapeHtml(text) {
     '"': '&quot;',
     "'": '&#039;'
   };
-  return text.replace(/[&<>"']/g, m => map[m]);
+  return String(text).replace(/[&<>"']/g, m => map[m]);
 }
