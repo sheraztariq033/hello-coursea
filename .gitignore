@@ -1,0 +1,5 @@
+node_modules/
+*.log
+.env
+database.sqlite
+test_output.log
