@@ -2,9 +2,9 @@
   "name": "app",
   "version": "1.0.0",
   "description": "Receipt & Warranty Vault App",
-  "main": "src/index.js",
+  "main": "api/index.js",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node api/index.js",
     "test": "node --test tests/*.test.js"
   },
   "repository": {
@@ -19,7 +19,6 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "sqlite3": "^6.0.1",
     "uuid": "^14.0.1"
   }
 }
