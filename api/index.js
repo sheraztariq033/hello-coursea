@@ -31,15 +31,21 @@ app.use(async (req, res, next) => {
   next();
 });
 
-// Serve static assets from public folder (local fallback)
-app.use(express.static(path.join(__dirname, '../public')));
+// Serve static assets only when NOT on Vercel Serverless (local/standalone fallback)
+if (!process.env.VERCEL) {
+  app.use(express.static(path.join(__dirname, '../public')));
+}
 
 // Register API router
 app.use('/api', apiRouter);
 
-// Fallback to static frontend index (immune to Express 5 / path-to-regexp syntax changes)
+// Fallback route handler
 app.use((req, res) => {
-  res.sendFile(path.join(__dirname, '../public/index.html'));
+  if (process.env.VERCEL) {
+    res.status(404).json({ error: 'API route not found' });
+  } else {
+    res.sendFile(path.join(__dirname, '../public/index.html'));
+  }
 });
 
 // Start standalone server only when NOT on Vercel serverless or running tests
