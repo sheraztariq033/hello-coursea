@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Receipt & Warranty Vault — MVP</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-900">
+
+  <!-- TOP NAVIGATION BAR -->
+  <nav class="bg-indigo-600 text-white shadow-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center">
+          <div class="flex-shrink-0 flex items-center space-x-2">
+            <i class="fa-solid fa-vault text-2xl text-yellow-300"></i>
+            <span class="font-bold text-lg tracking-wide">ReceiptVault</span>
+            <span class="bg-yellow-400 text-indigo-900 text-xs px-2.5 py-0.5 rounded-full font-semibold">MVP</span>
+          </div>
+          <div class="hidden md:block">
+            <div class="ml-10 flex items-baseline space-x-4">
+              <button id="nav-dashboard" class="nav-btn bg-indigo-700 text-white px-3 py-2 rounded-md text-sm font-medium">
+                <i class="fa-solid fa-list-check mr-1"></i> Dashboard
+              </button>
+              <button id="nav-simulator" class="nav-btn text-indigo-100 hover:bg-indigo-500 px-3 py-2 rounded-md text-sm font-medium">
+                <i class="fa-solid fa-flask mr-1"></i> Ingestion Simulator
+              </button>
+              <button id="nav-statements" class="nav-btn text-indigo-100 hover:bg-indigo-500 px-3 py-2 rounded-md text-sm font-medium">
+                <i class="fa-solid fa-file-invoice-dollar mr-1"></i> Bank Matcher
+              </button>
+              <button id="nav-security" class="nav-btn text-indigo-100 hover:bg-indigo-500 px-3 py-2 rounded-md text-sm font-medium">
+                <i class="fa-solid fa-shield-halved mr-1"></i> Security & Audit
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center space-x-4">
+          <span id="user-display" class="text-sm font-medium hidden"></span>
+          <button id="logout-btn" class="bg-indigo-700 hover:bg-indigo-800 text-indigo-100 px-3 py-1.5 rounded text-sm font-medium hidden">
+            <i class="fa-solid fa-right-from-bracket mr-1"></i> Logout
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ONBOARDING / LOGIN SCREEN -->
+  <div id="onboarding-screen" class="max-w-md mx-auto mt-20 p-8 bg-white rounded-xl shadow-xl border border-gray-100">
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-indigo-100 text-indigo-600 mb-4">
+        <i class="fa-solid fa-vault text-3xl"></i>
+      </div>
+      <h2 class="text-3xl font-extrabold text-gray-900">Get Your Proxy Identity</h2>
+      <p class="text-sm text-gray-500 mt-2">Never lose a receipt. Safeguard your privacy at checkouts.</p>
+    </div>
+
+    <form id="onboarding-form" class="space-y-6">
+      <div>
+        <label for="real-email" class="block text-sm font-semibold text-gray-700">Enter Your Real Email Address</label>
+        <div class="mt-1 relative rounded-md shadow-sm">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+            <i class="fa-solid fa-envelope"></i>
+          </div>
+          <input type="email" id="real-email" required class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm" placeholder="you@example.com">
+        </div>
+        <p class="text-xs text-gray-400 mt-1.5">We will never expose your real email or details to merchants. Ever.</p>
+      </div>
+
+      <button type="submit" class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition">
+        Generate My Free Account <i class="fa-solid fa-arrow-right ml-2"></i>
+      </button>
+    </form>
+  </div>
+
+  <!-- MAIN CONTAINER (Only shown after user is onboarded/logged in) -->
+  <div id="app-container" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 hidden">
+
+    <!-- USER PROXY PROFILE CARD (Sticky top/side preview of proxy identity details) -->
+    <div class="bg-gradient-to-r from-indigo-700 to-indigo-900 text-white rounded-2xl shadow-xl p-6 mb-8 relative overflow-hidden">
+      <div class="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-y-8 translate-x-8">
+        <i class="fa-solid fa-shield text-[12rem]"></i>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
+        <!-- Proxy Details -->
+        <div class="space-y-4">
+          <div class="flex items-center space-x-2">
+            <span class="bg-indigo-500 text-xs px-2.5 py-1 rounded-full font-bold uppercase tracking-wider">Your Proxy Identity</span>
+            <span id="tier-badge" class="bg-yellow-400 text-indigo-950 text-xs px-2.5 py-1 rounded-full font-bold uppercase tracking-wider">Free Tier</span>
+          </div>
+          <div>
+            <span class="text-xs text-indigo-200 block font-medium">PROXY EMAIL ADDRESS</span>
+            <div class="flex items-center space-x-2 mt-1">
+              <span id="profile-proxy-email" class="text-lg font-bold select-all tracking-tight"></span>
+              <button onclick="copyText('profile-proxy-email')" class="text-indigo-300 hover:text-white transition"><i class="fa-regular fa-copy"></i></button>
+            </div>
+          </div>
+          <div>
+            <span class="text-xs text-indigo-200 block font-medium">PROXY PHONE NUMBER</span>
+            <div class="flex items-center space-x-2 mt-1">
+              <span id="profile-proxy-phone" class="text-lg font-bold select-all tracking-tight"></span>
+              <button onclick="copyText('profile-proxy-phone')" class="text-indigo-300 hover:text-white transition"><i class="fa-regular fa-copy"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- QR Code Visual -->
+        <div class="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 flex items-center space-x-4">
+          <div class="bg-white p-2 rounded-lg flex-shrink-0">
+            <!-- Simulated SVG QR Code -->
+            <svg id="profile-qr-code" class="w-20 h-20" viewBox="0 0 100 100">
+              <rect width="100" height="100" fill="white"/>
+              <!-- Fixed corners -->
+              <rect x="5" y="5" width="25" height="25" fill="black"/>
+              <rect x="9" y="9" width="17" height="17" fill="white"/>
+              <rect x="13" y="13" width="9" height="9" fill="black"/>
+
+              <rect x="70" y="5" width="25" height="25" fill="black"/>
+              <rect x="74" y="9" width="17" height="17" fill="white"/>
+              <rect x="78" y="13" width="9" height="9" fill="black"/>
+
+              <rect x="5" y="70" width="25" height="25" fill="black"/>
+              <rect x="9" y="74" width="17" height="17" fill="white"/>
+              <rect x="13" y="78" width="9" height="9" fill="black"/>
+              <!-- Random fill elements -->
+              <rect x="40" y="20" width="10" height="10" fill="black"/>
+              <rect x="50" y="40" width="15" height="10" fill="black"/>
+              <rect x="35" y="60" width="10" height="15" fill="black"/>
+              <rect x="70" y="70" width="15" height="15" fill="black"/>
+              <rect x="80" y="45" width="10" height="15" fill="black"/>
+            </svg>
+          </div>
+          <div>
+            <h4 class="font-bold text-sm">Loyalty Scan Code</h4>
+            <p class="text-xs text-indigo-200 mt-1">Present this QR code to Clover or Square merchant terminals to automatically capture receipts.</p>
+            <div class="mt-2 text-xs font-semibold bg-white/20 inline-block px-2 py-0.5 rounded">Token: <span id="proxy-token-code"></span></div>
+          </div>
+        </div>
+
+        <!-- Monetization / Settings -->
+        <div class="flex flex-col space-y-3 justify-center">
+          <div class="bg-yellow-400 text-indigo-950 rounded-xl p-3 shadow-md flex items-start space-x-3">
+            <div class="text-lg"><i class="fa-solid fa-gift"></i></div>
+            <div>
+              <h5 class="font-bold text-xs uppercase">Referral Promotion Hook</h5>
+              <p class="text-xs font-medium mt-0.5">High-value item detected with no warranty insurance? <a href="#" class="underline font-bold hover:text-indigo-900">Get coverage now.</a></p>
+            </div>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button id="toggle-tier-btn" class="flex-1 bg-white hover:bg-gray-100 text-indigo-900 font-bold py-2 rounded text-xs transition">
+              <i class="fa-solid fa-crown text-yellow-500 mr-1"></i> Upgrade to Premium
+            </button>
+            <button id="rotate-proxy-btn" class="bg-indigo-800 hover:bg-indigo-700 text-white py-2 px-3 rounded text-xs transition" title="Rotate Proxy Identity">
+              <i class="fa-solid fa-arrows-rotate mr-1"></i> Rotate
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN VIEWS PANEL -->
+
+    <!-- 1. DASHBOARD VIEW -->
+    <div id="view-dashboard" class="view-content space-y-8">
+
+      <!-- Key Statistics Row -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+          <div>
+            <span class="text-sm font-medium text-gray-500">Total Spent</span>
+            <h3 id="stat-total-spent" class="text-2xl font-extrabold text-gray-900 mt-1">$0.00</h3>
+          </div>
+          <div class="w-12 h-12 bg-green-100 text-green-600 rounded-lg flex items-center justify-center text-xl">
+            <i class="fa-solid fa-sack-dollar"></i>
+          </div>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+          <div>
+            <span class="text-sm font-medium text-gray-500">Receipts Vaulted</span>
+            <h3 id="stat-receipt-count" class="text-2xl font-extrabold text-gray-900 mt-1">0</h3>
+          </div>
+          <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-xl">
+            <i class="fa-solid fa-receipt"></i>
+          </div>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+          <div>
+            <span class="text-sm font-medium text-gray-500">Active Warranties</span>
+            <h3 id="stat-active-warranties" class="text-2xl font-extrabold text-gray-900 mt-1">0</h3>
+          </div>
+          <div class="w-12 h-12 bg-yellow-100 text-yellow-600 rounded-lg flex items-center justify-center text-xl">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters & Action Bar -->
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex-1 grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <!-- Text Search -->
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+              <i class="fa-solid fa-magnifying-glass text-xs"></i>
+            </div>
+            <input type="text" id="filter-search" class="block w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs" placeholder="Search merchant or item...">
+          </div>
+          <!-- Category Select -->
+          <select id="filter-category" class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
+            <option value="">All Categories</option>
+            <option value="Electronics">Electronics</option>
+            <option value="Apparel">Apparel</option>
+            <option value="Food & Dining">Food & Dining</option>
+            <option value="Home Goods">Home Goods</option>
+            <option value="Other">Other</option>
+          </select>
+          <!-- Date Filter Start -->
+          <input type="date" id="filter-date-start" class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs" placeholder="Start Date">
+          <!-- Has Warranty Toggle -->
+          <div class="flex items-center space-x-2 pl-2">
+            <input type="checkbox" id="filter-has-warranty" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+            <label for="filter-has-warranty" class="text-xs text-gray-600 select-none">Has Warranty</label>
+          </div>
+        </div>
+
+        <div class="flex space-x-2 shrink-0">
+          <button id="add-manual-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-sm transition">
+            <i class="fa-solid fa-plus mr-1"></i> Add Receipt Manually
+          </button>
+          <button id="clear-filters-btn" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-2 rounded-lg text-xs font-medium transition">
+            Clear Filters
+          </button>
+        </div>
+      </div>
+
+      <!-- Receipts List Container -->
+      <div>
+        <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+          <i class="fa-solid fa-box-archive mr-2 text-indigo-600"></i> Your Digital Vault
+        </h3>
+        <div id="receipts-list" class="space-y-4">
+          <!-- Dynamic cards injected here -->
+          <div class="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
+            <i class="fa-regular fa-folder-open text-4xl text-gray-300 mb-3"></i>
+            <h4 class="font-bold text-gray-500">No receipts in your vault yet</h4>
+            <p class="text-xs text-gray-400 mt-1 max-w-sm mx-auto">Use the Ingestion Simulator tab to simulate emails or SMS messages forwarding receipts, or click "Add Receipt Manually" above.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. INGESTION SIMULATOR VIEW -->
+    <div id="view-simulator" class="view-content space-y-8 hidden">
+      <div class="max-w-4xl mx-auto">
+        <div class="mb-6">
+          <h2 class="text-2xl font-bold text-gray-900">Ingestion Gateway Simulator</h2>
+          <p class="text-sm text-gray-500">Bypass complex email/SMS forwarding setups. Paste raw payloads below to watch the OCR & Extraction AI build itemized listings.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <button onclick="setSimulatorTab('email')" id="sim-tab-email" class="sim-tab-btn bg-indigo-600 text-white font-bold p-4 rounded-xl shadow-sm text-center border-2 border-indigo-600 flex flex-col items-center">
+            <i class="fa-solid fa-envelope text-2xl mb-1"></i>
+            <span class="text-sm">Email Forwarding</span>
+          </button>
+          <button onclick="setSimulatorTab('sms')" id="sim-tab-sms" class="sim-tab-btn bg-white text-gray-700 font-bold p-4 rounded-xl shadow-sm text-center border-2 border-transparent hover:bg-gray-50 flex flex-col items-center">
+            <i class="fa-solid fa-comment-sms text-2xl mb-1"></i>
+            <span class="text-sm">SMS Text Ingestion</span>
+          </button>
+          <button onclick="setSimulatorTab('photo')" id="sim-tab-photo" class="sim-tab-btn bg-white text-gray-700 font-bold p-4 rounded-xl shadow-sm text-center border-2 border-transparent hover:bg-gray-50 flex flex-col items-center">
+            <i class="fa-solid fa-camera text-2xl mb-1"></i>
+            <span class="text-sm">Photo Scan OCR</span>
+          </button>
+        </div>
+
+        <!-- Simulator Form Panel -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+
+          <!-- EMAIL SIMULATOR FORM -->
+          <form id="sim-form-email" class="sim-form space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase">From Sender</label>
+                <input type="email" id="sim-email-from" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm" value="orders@apple.com">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase">To Proxy Email</label>
+                <input type="text" id="sim-email-to" readonly class="mt-1 block w-full bg-gray-50 px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-500">
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label class="block text-xs font-semibold text-gray-500 uppercase">Raw Email Body (Unstructured Text)</label>
+                <div class="space-x-1">
+                  <button type="button" onclick="loadEmailTemplate('apple')" class="text-[10px] bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2 py-0.5 rounded font-bold">Template: Apple</button>
+                  <button type="button" onclick="loadEmailTemplate('bestbuy')" class="text-[10px] bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2 py-0.5 rounded font-bold">Template: BestBuy</button>
+                  <button type="button" onclick="loadEmailTemplate('starbucks')" class="text-[10px] bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2 py-0.5 rounded font-bold">Template: Starbucks</button>
+                </div>
+              </div>
+              <textarea id="sim-email-body" rows="8" class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs font-mono"></textarea>
+            </div>
+            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded font-semibold transition text-sm">
+              <i class="fa-solid fa-paper-plane mr-2"></i> Ingest Forwarded Email Receipt
+            </button>
+          </form>
+
+          <!-- SMS SIMULATOR FORM -->
+          <form id="sim-form-sms" class="sim-form space-y-4 hidden">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase">From Merchant Number</label>
+                <input type="text" id="sim-sms-from" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm" value="Square POS (833-21)">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase">To Proxy Phone</label>
+                <input type="text" id="sim-sms-to" readonly class="mt-1 block w-full bg-gray-50 px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-500">
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label class="block text-xs font-semibold text-gray-500 uppercase">SMS Raw Text</label>
+                <div class="space-x-1">
+                  <button type="button" onclick="loadSmsTemplate('square')" class="text-[10px] bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2 py-0.5 rounded font-bold">Template: Square</button>
+                  <button type="button" onclick="loadSmsTemplate('toast')" class="text-[10px] bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2 py-0.5 rounded font-bold">Template: Toast</button>
+                </div>
+              </div>
+              <textarea id="sim-sms-body" rows="4" class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs font-mono"></textarea>
+            </div>
+            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded font-semibold transition text-sm">
+              <i class="fa-solid fa-paper-plane mr-2"></i> Ingest SMS Receipt
+            </button>
+          </form>
+
+          <!-- PHOTO SIMULATOR FORM -->
+          <form id="sim-form-photo" class="sim-form space-y-4 hidden">
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-center mb-4">
+              <i class="fa-solid fa-camera-retro text-3xl text-gray-400 mb-2"></i>
+              <h4 class="font-bold text-xs text-gray-700">Simulated Camera Photo-Scan Fallback</h4>
+              <p class="text-[11px] text-gray-500 max-w-md mx-auto mt-0.5">Captures a picture of a paper receipt and routes the OCR text directly to the ingestion pipeline.</p>
+            </div>
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label class="block text-xs font-semibold text-gray-500 uppercase">Scanned OCR Output</label>
+                <div class="space-x-1">
+                  <button type="button" onclick="loadPhotoTemplate('homedepot')" class="text-[10px] bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2 py-0.5 rounded font-bold">Template: Home Depot</button>
+                  <button type="button" onclick="loadPhotoTemplate('walmart')" class="text-[10px] bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2 py-0.5 rounded font-bold">Template: Walmart</button>
+                </div>
+              </div>
+              <textarea id="sim-photo-body" rows="6" class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs font-mono"></textarea>
+            </div>
+            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded font-semibold transition text-sm">
+              <i class="fa-solid fa-camera mr-2"></i> Perform Simulated Scan & Parse
+            </button>
+          </form>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. BANK STATEMENT MATCHER VIEW -->
+    <div id="view-statements" class="view-content space-y-8 hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+        <!-- Upload Form Panel -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit space-y-6">
+          <div>
+            <h3 class="text-lg font-bold text-gray-900">End-of-Year Card Statement Matcher</h3>
+            <p class="text-xs text-gray-500 mt-1">Upload a CSV or paste transaction logs. We'll fuzzy match amounts + dates against your captured receipts to find missing gaps.</p>
+          </div>
+
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-700 flex items-start space-x-2">
+            <div class="text-sm mt-0.5"><i class="fa-solid fa-circle-info"></i></div>
+            <p><strong>Note:</strong> Card statements never show individual line items. We compare the statements' amount, date, and merchant to flag purchases lacking receipts.</p>
+          </div>
+
+          <form id="statements-form" class="space-y-4">
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label class="block text-xs font-semibold text-gray-500 uppercase">Paste Statement Rows (CSV format)</label>
+                <button type="button" onclick="loadMockCSV()" class="text-[10px] bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2 py-0.5 rounded font-bold">Load Mock CSV</button>
+              </div>
+              <textarea id="statements-csv" rows="6" class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs font-mono" placeholder="date,merchant,amount&#10;2025-10-06,Apple,1081.42&#10;2025-10-12,Home Depot,89.50"></textarea>
+              <span class="text-[10px] text-gray-400">Header rule: <code>date,merchant,amount</code></span>
+            </div>
+
+            <div class="flex space-x-2">
+              <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded font-semibold transition text-xs">
+                Run Fuzzy Gap Analysis
+              </button>
+              <button type="button" id="reset-statements-btn" class="bg-gray-100 hover:bg-gray-200 text-gray-600 py-2 px-3 rounded font-medium text-xs transition">
+                Reset
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Analyzer Display Panel -->
+        <div class="lg:col-span-2 space-y-6">
+          <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center justify-between">
+              <span>Fuzzy Gap Audit Result</span>
+              <span id="gap-count-badge" class="bg-red-100 text-red-700 text-xs px-2.5 py-0.5 rounded-full font-bold hidden">0 Gaps Detected</span>
+            </h3>
+
+            <div id="statements-analysis-list" class="space-y-3">
+              <div class="text-center py-12">
+                <i class="fa-solid fa-magnifying-glass-dollar text-4xl text-gray-300 mb-3"></i>
+                <h4 class="font-bold text-gray-500">No Statement Data Uploaded</h4>
+                <p class="text-xs text-gray-400 mt-1">Copy-paste card transaction rows on the left to start tracing missing files.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 4. SECURITY & AUDIT VIEW -->
+    <div id="view-security" class="view-content space-y-8 hidden">
+      <div class="max-w-4xl mx-auto space-y-8">
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
+            <h3 class="text-lg font-bold text-gray-900 flex items-center">
+              <i class="fa-solid fa-lock text-indigo-600 mr-2"></i> Security Shield & Privacy
+            </h3>
+            <p class="text-xs text-gray-500 leading-relaxed">
+              We process digital receipts entirely under our non-negotiable security directives:
+            </p>
+            <ul class="text-xs text-gray-600 space-y-2 list-disc pl-5">
+              <li>Merchants never receive your actual contact email or phone details.</li>
+              <li>When a proxy email or phone is matched to forward an inbox document to your personal catalog, a strict compliance hook logs the resolution event.</li>
+              <li>You may rotate your proxy tokens or completely delete your identity at any time.</li>
+            </ul>
+            <div class="pt-4 flex space-x-2">
+              <button id="rotate-proxy-btn-sec" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-semibold py-2 px-4 rounded text-xs transition">
+                <i class="fa-solid fa-arrows-rotate mr-1"></i> Rotate Proxy Details
+              </button>
+              <button id="danger-delete-account" class="bg-red-50 hover:bg-red-100 text-red-600 font-semibold py-2 px-4 rounded text-xs transition">
+                <i class="fa-solid fa-trash mr-1"></i> Permanent Deletion
+              </button>
+            </div>
+          </div>
+
+          <!-- Notification settings -->
+          <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
+            <h3 class="text-lg font-bold text-gray-900 flex items-center">
+              <i class="fa-solid fa-bell text-indigo-600 mr-2"></i> Preferences
+            </h3>
+            <form id="preferences-form" class="space-y-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="block text-xs font-bold text-gray-700">Email Notifications</label>
+                  <span class="text-[10px] text-gray-400">Receive alerts before warranties expire</span>
+                </div>
+                <input type="checkbox" id="pref-email-alerts" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+              </div>
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="block text-xs font-bold text-gray-700">Push Notifications</label>
+                  <span class="text-[10px] text-gray-400">Receive push countdowns</span>
+                </div>
+                <input type="checkbox" id="pref-push-alerts" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-700">Alert Lead Time (Days)</label>
+                <input type="number" id="pref-days-before" min="1" max="60" class="mt-1 block w-20 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs">
+              </div>
+              <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-1.5 px-3 rounded text-xs transition">
+                Save Preferences
+              </button>
+            </form>
+          </div>
+
+        </div>
+
+        <!-- Audit logs table -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold text-gray-900 flex items-center">
+              <i class="fa-solid fa-clipboard-list text-indigo-600 mr-2"></i> Compliance Audit Logs
+            </h3>
+            <span class="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded font-bold uppercase">PCI-DSS adjacent</span>
+          </div>
+          <p class="text-xs text-gray-500 mb-4">
+            Strict compliance logging is enabled. Each entry demonstrates when and why your proxy email or phone resolved to locate your real user details.
+          </p>
+
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 text-left text-xs">
+              <thead class="bg-gray-50 text-gray-500 uppercase tracking-wider">
+                <tr>
+                  <th class="px-4 py-3">Event ID</th>
+                  <th class="px-4 py-3">Resolved Field</th>
+                  <th class="px-4 py-3">Accessing Service</th>
+                  <th class="px-4 py-3">Timestamp</th>
+                </tr>
+              </thead>
+              <tbody id="audit-logs-table-body" class="divide-y divide-gray-100 text-gray-600">
+                <tr>
+                  <td colspan="4" class="px-4 py-4 text-center text-gray-400">No resolution events logged yet. Try triggering an ingestion.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MANUAL RECEIPT MODAL -->
+  <div id="manual-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 p-6 overflow-hidden">
+      <div class="flex justify-between items-center border-b pb-3 mb-4">
+        <h3 class="font-bold text-base text-gray-900">Add Receipt Manually</h3>
+        <button onclick="closeManualModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <form id="manual-receipt-form" class="space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase">Merchant</label>
+            <input type="text" id="manual-merchant" required class="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase">Purchase Date</label>
+            <input type="date" id="manual-date" required class="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase">Total Amount ($)</label>
+            <input type="number" step="0.01" id="manual-total" required class="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase">Sales Tax ($)</label>
+            <input type="number" step="0.01" id="manual-tax" class="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs" value="0.00">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase">Payment Method</label>
+            <input type="text" id="manual-payment" class="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs" placeholder="VISA ending in 4242">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase">Warranty Expiry Date</label>
+            <input type="date" id="manual-warranty" class="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Line Items (Optional)</label>
+          <div id="manual-line-items-container" class="space-y-2 max-h-32 overflow-y-auto pr-1">
+            <!-- Dynamic inputs injected here -->
+          </div>
+          <button type="button" onclick="addManualLineItemInput()" class="mt-2 text-xs text-indigo-600 hover:text-indigo-800 font-semibold">
+            <i class="fa-solid fa-plus mr-1"></i> Add Item Line
+          </button>
+        </div>
+
+        <div class="flex justify-end space-x-2 pt-4 border-t">
+          <button type="button" onclick="closeManualModal()" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-1.5 rounded text-xs font-semibold">
+            Cancel
+          </button>
+          <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded text-xs font-semibold">
+            Save Receipt
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- WARRANTY DATE PICKER MODAL -->
+  <div id="warranty-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full mx-4 p-6">
+      <div class="flex justify-between items-center border-b pb-3 mb-4">
+        <h3 class="font-bold text-sm text-gray-900">Edit Warranty Expiration</h3>
+        <button onclick="closeWarrantyModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <form id="warranty-update-form" class="space-y-4">
+        <input type="hidden" id="warranty-modal-receipt-id">
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 uppercase">Select Expiration Date</label>
+          <input type="date" id="warranty-modal-expiry-date" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs">
+        </div>
+
+        <div class="flex justify-end space-x-2 pt-4 border-t">
+          <button type="button" onclick="closeWarrantyModal()" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded text-xs font-medium">
+            Cancel
+          </button>
+          <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded text-xs font-semibold">
+            Update Warranty
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOAST ALERTS SYSTEM -->
+  <div id="toast-container" class="fixed bottom-5 right-5 space-y-2 z-50"></div>
+
+  <!-- APPLICATION JS SCRIPT -->
+  <script src="/app.js"></script>
+</body>
+</html>
